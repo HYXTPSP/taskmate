@@ -24,7 +24,7 @@ public class ModConfig {
     public String apiKey = "";
     public String model = "gpt-4o-mini";
     public double temperature = 0.4;
-    public int maxTokens = 2048;
+    public int maxTokens = 4096;
     /** 请求超时(秒) */
     public int requestTimeoutSeconds = 120;
     /** 使用 OpenAI JSON 模式(response_format=json_object),服务商不支持时自动降级 */

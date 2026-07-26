@@ -172,7 +172,10 @@ final class ObtainAction {
                 }
             }
 
-            if (InventoryHelper.count(player, item) >= want) {
+            int have = item.endsWith("_planks")
+                    ? countFlex(player, "planks") // 木板通配:任何木板都算
+                    : InventoryHelper.count(player, item);
+            if (have >= want) {
                 control.complete();
                 return;
             }
@@ -180,6 +183,11 @@ final class ObtainAction {
         }
 
         private void decide(ClientPlayerEntity player) {
+            // 0) 木板类:按通配木板获取(任何原木可合,没原木就砍树)
+            if (item.endsWith("_planks")) {
+                acquireFlex(player, "planks", want);
+                return;
+            }
             // 1) 原木类:通配所有原木
             if (item.endsWith("_log")) {
                 spawnMine(LOGS, want);

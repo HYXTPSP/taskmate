@@ -83,15 +83,19 @@ public final class AiSession {
         conversation.addUser(content);
         busy = true;
         if (echoThinking) ChatUi.thinking();
+        com.hyxt.taskmate.util.TaskLog.log(">>> 发给 AI:\n" + content);
         AiClient.chat(Prompts.system(cfg), conversation.messages(cfg.maxHistoryMessages), cfg)
                 .whenComplete((result, err) -> MinecraftClient.getInstance().execute(() -> {
                     busy = false;
                     if (err != null) {
                         conversation.dropLastIfUser();
+                        com.hyxt.taskmate.util.TaskLog.log("!!! AI 请求失败: " + rootMessage(err));
                         ChatUi.error("请求失败: " + rootMessage(err));
                         return;
                     }
                     TokenStats.record(result.promptTokens(), result.completionTokens());
+                    com.hyxt.taskmate.util.TaskLog.log("<<< AI 回复 (" + result.promptTokens() + "+"
+                            + result.completionTokens() + " tokens):\n" + result.content());
                     handleReply(result.content());
                 }));
     }
@@ -104,11 +108,12 @@ public final class AiSession {
             result = PlanParser.parse(raw);
             parseRetries = 0;
         } catch (Exception e) {
-            if (parseRetries++ < 1) {
+            if (parseRetries++ < 2) {
                 send("[格式错误] 你上一条回复无法按约定解析(" + e.getMessage()
                         + ")。请重新回复,只输出一个合法的 JSON 对象,严格遵守系统提示中的格式。", false);
             } else {
                 parseRetries = 0;
+                com.hyxt.taskmate.util.TaskLog.log("!!! AI 回复解析失败: " + e.getMessage());
                 ChatUi.error("AI 返回的格式无法解析: " + e.getMessage());
             }
             return;
