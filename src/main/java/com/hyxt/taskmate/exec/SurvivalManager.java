@@ -56,10 +56,7 @@ public final class SurvivalManager {
                 BlockPos pos = player.getBlockPos();
                 String dim = client.world.getRegistryKey().getValue().getPath();
                 ContextStore.remember("死亡点", pos.getX(), pos.getY(), pos.getZ(), dim, "上次死亡掉落位置");
-                boolean hadTask = TaskExecutor.INSTANCE.isRunningOrPaused();
                 TaskExecutor.INSTANCE.stopAll("玩家死亡");
-                AiSession.INSTANCE.noteEvent("玩家死亡于 (" + pos.getX() + "," + pos.getY() + "," + pos.getZ()
-                        + ", " + dim + "),已记为地点「死亡点」" + (hadTask ? ",当时的任务已终止" : ""));
                 ChatUi.error("你死了…死亡位置已记为地点「死亡点」,复活后可以说 "
                         + cfg.triggerPrefix + "去死亡点捡装备");
             }

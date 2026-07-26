@@ -32,6 +32,16 @@ public final class AiSession {
         ContextStore.saveNow();
     }
 
+    /**
+     * 任务结束(完成/终止/取消/最终失败)时调用:清空对话上下文。
+     * 每个新任务从零开始,跨任务只保留地点记忆(通过状态快照可见)。
+     */
+    public void endTaskContext() {
+        conversation.clear();
+        parseRetries = 0;
+        com.hyxt.taskmate.util.TaskLog.log("任务结束,对话上下文已清空(记忆地点保留)");
+    }
+
     /** 玩家输入的触发前缀消息 */
     public void userMessage(String text) {
         ModConfig cfg = TaskmateClient.CONFIG;

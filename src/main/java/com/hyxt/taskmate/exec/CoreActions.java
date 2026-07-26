@@ -144,10 +144,13 @@ final class CoreActions {
 
         @Override
         public void start() {
-            List<String> names = control.step().getStringList("blocks").stream()
-                    .map(CoreActions::normalizeId).toList();
-            if (names.isEmpty()) {
-                control.fail("mine 缺少 blocks 参数");
+            List<String> names = new java.util.ArrayList<>(control.step().getStringList("blocks").stream()
+                    .map(CoreActions::normalizeId).toList());
+            if (names.isEmpty() && control.step().has("block")) { // 容错:AI 常把 blocks 写成 block
+                names.add(normalizeId(control.step().getString("block", "")));
+            }
+            if (names.isEmpty() || names.get(0).isBlank()) {
+                control.fail("mine 缺少 blocks 参数(数组)");
                 return;
             }
             for (String n : names) {
@@ -224,12 +227,26 @@ final class CoreActions {
     static class CollectHandler extends StepHandler {
         private int repathCooldown;
         private int idleTicks;
+        private com.hyxt.taskmate.api.SubStep redirect;
 
         @Override
-        public void start() {}
+        public void start() {
+            // 容错:AI 有时用 collect 采集方块 → 自动转成 mine
+            if (control.step().has("blocks") || control.step().has("block")) {
+                redirect = com.hyxt.taskmate.api.SubStep.create("mine", control.step().args, control);
+            }
+        }
 
         @Override
         public void tick() {
+            if (redirect != null) {
+                switch (redirect.tick(control.client())) {
+                    case DONE -> control.complete();
+                    case FAILED -> control.fail(redirect.failReason());
+                    case RUNNING -> {}
+                }
+                return;
+            }
             var client = control.client();
             var player = client.player;
             int radius = Math.max(4, control.step().getInt("radius", 16));

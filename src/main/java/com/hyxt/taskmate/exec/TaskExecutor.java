@@ -108,6 +108,7 @@ public class TaskExecutor {
         autoMode = false;
         if (state == State.AWAITING_CONFIRM) state = State.IDLE;
         ChatUi.info("已取消该计划。");
+        AiSession.INSTANCE.endTaskContext();
     }
 
     /** 玩家手动终止(#停止 / 按键 / 按钮) */
@@ -122,7 +123,7 @@ public class TaskExecutor {
         state = State.IDLE;
         if (hadWork) {
             ChatUi.info("任务已终止(" + reason + ")。");
-            AiSession.INSTANCE.noteEvent("玩家终止了任务(" + reason + ")");
+            AiSession.INSTANCE.endTaskContext();
         }
     }
 
@@ -328,13 +329,7 @@ public class TaskExecutor {
         ChatUi.success("任务完成!"
                 + (gains.isEmpty() ? "" : " 获得: " + gains)
                 + " [本任务消耗 " + TokenStats.taskTotal() + " tokens]");
-        ModConfig cfg = TaskmateClient.CONFIG;
-        String event = "计划已全部执行完成。" + (gains.isEmpty() ? "" : "实际获得物品: " + gains + "。");
-        if (cfg.reportTaskResultToAi && !TokenStats.taskCapExceeded()) {
-            AiSession.INSTANCE.systemEvent(event + "请用一句话向玩家简短总结(type=chat)。");
-        } else {
-            AiSession.INSTANCE.noteEvent(event);
-        }
+        AiSession.INSTANCE.endTaskContext();
     }
 
     private void onStepFailed(TaskStep step, String reason) {
@@ -349,7 +344,7 @@ public class TaskExecutor {
         if (TokenStats.taskCapExceeded()) {
             autoMode = false;
             ChatUi.error("本任务 token 消耗已达上限(" + cfg.maxTokensPerTask + "),不再自动重规划。");
-            AiSession.INSTANCE.noteEvent("任务失败: " + reason + "(token 上限已到,未自动重规划)");
+            AiSession.INSTANCE.endTaskContext();
             return;
         }
         if (cfg.autoReplanOnFailure && replanCount < cfg.maxAutoReplans && !AiSession.INSTANCE.isBusy()) {
@@ -362,7 +357,7 @@ public class TaskExecutor {
                     + "。请根据当前状态重新规划(type=plan),或说明无法完成(type=chat)。");
         } else {
             autoMode = false;
-            AiSession.INSTANCE.noteEvent("任务失败: " + reason);
+            AiSession.INSTANCE.endTaskContext();
         }
     }
 

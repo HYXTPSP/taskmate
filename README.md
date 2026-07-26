@@ -59,14 +59,14 @@ Fabric Loader 需 0.16 及以上。
 | pauseOnManualInput | true | 手动移动时自动暂停任务 |
 | showHud | true | 显示 HUD 状态条 |
 | maxHistoryMessages | 16 | 上下文最大消息数(旧消息的状态快照发送时自动剥掉) |
-| persistContext | true | 上下文/记忆按存档持久化 |
+| persistContext | true | 地点记忆按存档持久化(对话上下文按任务隔离,不落盘) |
 | extraSystemPrompt | (空) | 追加到系统提示词的自定义内容 |
 | requireConfirm | true | 计划是否需要点击执行确认 |
 | autoReplanOnFailure | true | 步骤失败自动请 AI 重规划 |
 | maxAutoReplans | 3 | 自动重规划次数上限 |
 | confirmReplan | true | 重规划的新计划是否也需确认 |
 | stepTimeoutSeconds | 300 | 单步骤超时(持续性步骤除外) |
-| reportTaskResultToAi | false | 任务完成后是否让 AI 总结一句(开启多花一次请求) |
+
 | maxTokensPerTask | 0 | 单任务 token 上限,0 不限 |
 | autoEat / autoEatAt | true / 14 | 任务中自动进食及饥饿阈值 |
 | autoDefend | true | 任务中遇袭自动反击并自动恢复任务 |
@@ -132,11 +132,6 @@ public class DanceHandler extends StepHandler {
 
 `StepControl` 还提供 `gainsSoFar()`(本步骤背包净增量)、`markOpenEnded()`(标记为持续性步骤)、`fail(原因)` 等。
 核心动作(goto/mine/…)与插件动作走的是同一套注册机制,可参考源码 `exec/CoreActions.java`。
-
-## CI 自动构建
-
-仓库已附 GitHub Actions 配置(`.github/workflows/build.yml`):推送到 GitHub 后自动编译,
-在仓库 Actions 页面的运行记录里下载 `taskmate-jars` 产物,无需本地装 JDK。
 
 ## 已知限制
 

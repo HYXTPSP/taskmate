@@ -69,6 +69,40 @@ final class ObtainAction {
 
     private static final Pattern MISSING_PATTERN = Pattern.compile("缺少材料: ([a-z0-9_]+)×(\\d+)");
 
+    /** 常用配方知识表:不依赖配方书解锁。材料齐了配方自然解锁,再走 craft */
+    private record Ing(String item, int count) {}
+
+    private static final Map<String, List<Ing>> CRAFT_KNOWLEDGE = buildKnowledge();
+
+    private static Map<String, List<Ing>> buildKnowledge() {
+        Map<String, List<Ing>> m = new java.util.HashMap<>();
+        String[][] tiers = {{"wooden", "planks"}, {"stone", "cobblestone"},
+                {"iron", "iron_ingot"}, {"golden", "gold_ingot"}, {"diamond", "diamond"}};
+        for (String[] t : tiers) {
+            m.put(t[0] + "_pickaxe", List.of(new Ing(t[1], 3), new Ing("stick", 2)));
+            m.put(t[0] + "_axe", List.of(new Ing(t[1], 3), new Ing("stick", 2)));
+            m.put(t[0] + "_sword", List.of(new Ing(t[1], 2), new Ing("stick", 1)));
+            m.put(t[0] + "_shovel", List.of(new Ing(t[1], 1), new Ing("stick", 2)));
+            m.put(t[0] + "_hoe", List.of(new Ing(t[1], 2), new Ing("stick", 2)));
+        }
+        String[][] armors = {{"iron", "iron_ingot"}, {"golden", "gold_ingot"},
+                {"diamond", "diamond"}, {"leather", "leather"}};
+        for (String[] a : armors) {
+            m.put(a[0] + "_helmet", List.of(new Ing(a[1], 5)));
+            m.put(a[0] + "_chestplate", List.of(new Ing(a[1], 8)));
+            m.put(a[0] + "_leggings", List.of(new Ing(a[1], 7)));
+            m.put(a[0] + "_boots", List.of(new Ing(a[1], 4)));
+        }
+        m.put("crafting_table", List.of(new Ing("planks", 4)));
+        m.put("furnace", List.of(new Ing("cobblestone", 8)));
+        m.put("chest", List.of(new Ing("planks", 8)));
+        m.put("stick", List.of(new Ing("planks", 2)));
+        m.put("torch", List.of(new Ing("coal", 1), new Ing("stick", 1)));
+        m.put("shield", List.of(new Ing("planks", 6), new Ing("iron_ingot", 1)));
+        m.put("bucket", List.of(new Ing("iron_ingot", 3)));
+        return m;
+    }
+
     // ---- 实现 ----
 
     static class ObtainHandler extends StepHandler {
@@ -191,7 +225,24 @@ final class ObtainAction {
                 spawn("smelt", args, ChildKind.SMELT);
                 return;
             }
-            // 4) 可合成(craft 自带中间材料递归,缺基础料会失败回来走 obtain)
+            // 4) 配方知识表(不依赖配方书解锁):先递归备齐材料,再合成
+            List<Ing> ings = CRAFT_KNOWLEDGE.get(item);
+            if (ings != null) {
+                int crafts = want - InventoryHelper.count(player, item);
+                for (Ing ing : ings) {
+                    int needTotal = ing.count() * crafts;
+                    if (countFlex(player, ing.item()) < needTotal) {
+                        acquireFlex(player, ing.item(), needTotal);
+                        return;
+                    }
+                }
+                JsonObject args = new JsonObject();
+                args.addProperty("item", item);
+                args.addProperty("count", want);
+                spawn("craft", args, ChildKind.CRAFT);
+                return;
+            }
+            // 5) 配方书里已解锁的其他配方
             if (RecipeIndex.findCrafting(control.client(), item) != null) {
                 JsonObject args = new JsonObject();
                 args.addProperty("item", item);
@@ -200,6 +251,48 @@ final class ObtainAction {
                 return;
             }
             control.fail("不知道如何获取 " + item + "(不在知识表里也不可合成),请手动规划");
+        }
+
+        /** "planks" 是伪物品:任意木板都算 */
+        private int countFlex(ClientPlayerEntity player, String name) {
+            if (name.equals("planks")) {
+                int total = 0;
+                for (int i = 0; i < player.getInventory().size(); i++) {
+                    var s = player.getInventory().getStack(i);
+                    if (!s.isEmpty() && InventoryHelper.idOf(s).endsWith("_planks")) total += s.getCount();
+                }
+                return total;
+            }
+            return InventoryHelper.count(player, name);
+        }
+
+        private void acquireFlex(ClientPlayerEntity player, String name, int needTotal) {
+            if (!name.equals("planks")) {
+                spawnObtain(name, needTotal);
+                return;
+            }
+            // 木板:背包有原木就合对应木板;没有就先去砍树
+            String logId = null;
+            for (String log : LOGS) {
+                if (InventoryHelper.count(player, log) > 0) {
+                    logId = log;
+                    break;
+                }
+            }
+            int planksHave = countFlex(player, "planks");
+            if (logId != null) {
+                String planks = logId.replace("_log", "_planks");
+                JsonObject args = new JsonObject();
+                args.addProperty("item", planks);
+                args.addProperty("count", InventoryHelper.count(player, planks) + (needTotal - planksHave));
+                spawn("craft", args, ChildKind.CRAFT);
+            } else {
+                int logsNeed = (needTotal - planksHave + 3) / 4;
+                int logsHave = 0;
+                for (String log : LOGS) logsHave += InventoryHelper.count(player, log);
+                ChatUi.info("缺木板,先去砍树…");
+                spawnMine(LOGS, logsHave + logsNeed);
+            }
         }
 
         private void spawnMine(List<String> blocks, int totalWant) {

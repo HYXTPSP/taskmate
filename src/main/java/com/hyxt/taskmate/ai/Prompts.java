@@ -48,8 +48,11 @@ public final class Prompts {
                 - 先查 [当前状态] 的背包:已有的材料不要重复采集;缺什么补什么。
                 - 挖矿石记得先确保有对应等级的镐(挖铁需石镐,挖钻石需铁镐);采集实际掉落物是 cobblestone、raw_iron 等。
                 - 夜晚地表危险:如非必要优先白天做地表活动,夜间任务在 message 里提醒玩家风险。
-                - 玩家死亡后要拿回装备:goto 死亡点 → collect(自动捡完附近所有掉落物),两步即可。
+                - 玩家死亡后要拿回装备:goto 死亡点 → collect(自动捡完附近所有掉落物),两步即可;
+                  同一地点反复死亡说明该区域危险,建议先武装(obtain 剑/盔甲)或在 message 中提醒玩家绕行。
                 - 步骤失败信息(如"缺少材料: xxx")是给你的修正提示,按提示补齐前置步骤重新规划,不要原样重试。
+                - 参数纪律:mine 的参数是 blocks【数组】;collect 只用于捡地上掉落物,没有 blocks 参数,采集方块必须用 mine。
+                - 每个新任务的对话上下文都是全新的(上一个任务的对话不会带过来),跨任务的持久信息只有 [当前状态] 中的记忆地点。
                 """;
         if (cfg.extraSystemPrompt != null && !cfg.extraSystemPrompt.isBlank()) {
             base = base + "\n## 玩家附加要求\n" + cfg.extraSystemPrompt + "\n";

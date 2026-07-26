@@ -113,14 +113,7 @@ public final class ContextStore {
         if (currentKey == null || !TaskmateClient.CONFIG.persistContext) return;
         try {
             JsonObject root = new JsonObject();
-            JsonArray hist = new JsonArray();
-            for (Conversation.Msg m : AiSession.INSTANCE.conversation().copyAll()) {
-                JsonObject o = new JsonObject();
-                o.addProperty("role", m.role());
-                o.addProperty("content", m.content());
-                hist.add(o);
-            }
-            root.add("history", hist);
+            // 只持久化地点记忆;对话上下文按任务隔离,不落盘
             JsonArray mems = new JsonArray();
             for (MemoryEntry m : memories) {
                 mems.add(GSON.toJsonTree(m));
@@ -139,14 +132,6 @@ public final class ContextStore {
             Path p = fileFor(key);
             if (!Files.exists(p)) return;
             JsonObject root = JsonParser.parseString(Files.readString(p, StandardCharsets.UTF_8)).getAsJsonObject();
-            List<Conversation.Msg> hist = new ArrayList<>();
-            if (root.has("history")) {
-                root.getAsJsonArray("history").forEach(el -> {
-                    JsonObject o = el.getAsJsonObject();
-                    hist.add(new Conversation.Msg(o.get("role").getAsString(), o.get("content").getAsString()));
-                });
-            }
-            AiSession.INSTANCE.conversation().restore(hist);
             if (root.has("memories")) {
                 root.getAsJsonArray("memories").forEach(el ->
                         memories.add(GSON.fromJson(el, MemoryEntry.class)));
