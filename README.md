@@ -58,7 +58,7 @@ Fabric Loader 需 0.16 及以上。
 | triggerPrefix | # | 触发前缀 |
 | pauseOnManualInput | true | 手动移动时自动暂停任务 |
 | showHud | true | 显示 HUD 状态条 |
-| maxHistoryMessages | 24 | 上下文最大消息数 |
+| maxHistoryMessages | 16 | 上下文最大消息数(旧消息的状态快照发送时自动剥掉) |
 | persistContext | true | 上下文/记忆按存档持久化 |
 | extraSystemPrompt | (空) | 追加到系统提示词的自定义内容 |
 | requireConfirm | true | 计划是否需要点击执行确认 |
@@ -66,7 +66,7 @@ Fabric Loader 需 0.16 及以上。
 | maxAutoReplans | 3 | 自动重规划次数上限 |
 | confirmReplan | true | 重规划的新计划是否也需确认 |
 | stepTimeoutSeconds | 300 | 单步骤超时(持续性步骤除外) |
-| reportTaskResultToAi | true | 任务完成后是否让 AI 总结一句(关闭省 token) |
+| reportTaskResultToAi | false | 任务完成后是否让 AI 总结一句(开启多花一次请求) |
 | maxTokensPerTask | 0 | 单任务 token 上限,0 不限 |
 | autoEat / autoEatAt | true / 14 | 任务中自动进食及饥饿阈值 |
 | autoDefend | true | 任务中遇袭自动反击并自动恢复任务 |

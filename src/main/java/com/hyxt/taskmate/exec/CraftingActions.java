@@ -24,26 +24,29 @@ final class CraftingActions {
     static void register() {
         ActionRegistry.register(new ActionDefinition(
                 "craft", List.of("make"),
-                "{\"action\":\"craft\",\"item\":\"iron_pickaxe\",\"count\":1,\"desc\":\"...\"} —— 合成物品直到背包中至少有 count 个(已够则跳过);材料必须已在背包,3x3 配方需要附近 6 格内有工作台(没有就先 place 一个);材料不足会失败并告知",
+                "{\"action\":\"craft\",\"item\":\"iron_pickaxe\",\"count\":1,\"desc\":\"...\"} —— 合成物品直到背包中至少有 count 个(已够则跳过);材料必须已在背包;需要工作台时会自动放置背包里的工作台、或自动用木板先合一个,无需单独的 place 步骤;材料不足会失败并告知",
                 true, CraftHandler::new));
         ActionRegistry.register(new ActionDefinition(
                 "smelt", List.of("cook"),
-                "{\"action\":\"smelt\",\"input\":\"raw_iron\",\"count\":8,\"desc\":\"...\"} —— 把背包中的 input 放进附近的熔炉烧炼并取回成品;需要附近 6 格内有熔炉和背包里有燃料(煤炭/木炭/木板等)",
+                "{\"action\":\"smelt\",\"input\":\"raw_iron\",\"count\":8,\"desc\":\"...\"} —— 把背包中的 input 烧炼并取回成品;附近没熔炉时会自动放置背包里的熔炉(背包也没有则失败,先 craft furnace);燃料用背包里的煤炭/木炭/木板",
                 true, SmeltHandler::new));
     }
 
     // ================================================= craft
 
     static class CraftHandler extends StepHandler {
-        private enum Phase { LOCATE, GOTO_TABLE, OPEN_TABLE, CRAFT, DONE }
+        private enum Phase { LOCATE, AUTO_CRAFT_TABLE, AUTO_PLACE_TABLE, GOTO_TABLE, OPEN_TABLE, CRAFT, DONE }
 
         private Phase phase = Phase.LOCATE;
         private String item;
         private int wantCount;
         private RecipeIndex.Found recipe;
+        private RecipeIndex.Found tableRecipe;
+        private com.hyxt.taskmate.util.AutoPlacer placer;
         private BlockPos tablePos;
         private int cooldown;
         private int emptyClicks;
+        private int tableEmptyClicks;
         private int openTries;
 
         @Override
@@ -85,11 +88,61 @@ final class CraftingActions {
                     }
                     tablePos = BlockInteraction.findNearest(client, Set.of(Blocks.CRAFTING_TABLE), 6);
                     if (tablePos == null) {
-                        control.fail("附近 6 格内没有工作台。请先 place 一个 crafting_table(材料:4 块木板)");
+                        // 自动兜底:背包有工作台→放;没有→有木板就先合成一个(2x2 配方)
+                        if (InventoryHelper.findSlot(player, "crafting_table") >= 0) {
+                            com.hyxt.taskmate.util.ChatUi.info("附近没有工作台,自动放置一个…");
+                            placer = new com.hyxt.taskmate.util.AutoPlacer("crafting_table");
+                            phase = Phase.AUTO_PLACE_TABLE;
+                            return;
+                        }
+                        tableRecipe = RecipeIndex.findCrafting(client, "crafting_table");
+                        if (tableRecipe != null && !tableRecipe.needsTable()) {
+                            com.hyxt.taskmate.util.ChatUi.info("附近没有工作台,尝试用木板自动合成一个…");
+                            phase = Phase.AUTO_CRAFT_TABLE;
+                            return;
+                        }
+                        control.fail("附近 6 格内没有工作台,背包里也没有工作台或足够的木板(需要 4 块木板)");
                         return;
                     }
                     phase = BlockInteraction.inReach(client, tablePos) ? Phase.OPEN_TABLE : Phase.GOTO_TABLE;
                     if (phase == Phase.GOTO_TABLE) BaritoneBridge.goNear(tablePos, 2);
+                }
+                case AUTO_CRAFT_TABLE -> {
+                    if (player.currentScreenHandler != player.playerScreenHandler) {
+                        player.closeHandledScreen();
+                        cooldown = 5;
+                        return;
+                    }
+                    if (InventoryHelper.count(player, "crafting_table") > 0) {
+                        placer = new com.hyxt.taskmate.util.AutoPlacer("crafting_table");
+                        phase = Phase.AUTO_PLACE_TABLE;
+                        return;
+                    }
+                    ItemStack out = player.currentScreenHandler.getSlot(0).getStack();
+                    if (!out.isEmpty()) {
+                        InventoryHelper.quickMove(client, player.currentScreenHandler, 0);
+                        cooldown = 4;
+                        return;
+                    }
+                    if (tableEmptyClicks++ >= 3) {
+                        control.fail("无法自动合成工作台:木板不足(需要 4 块)");
+                        return;
+                    }
+                    client.interactionManager.clickRecipe(player.currentScreenHandler.syncId,
+                            tableRecipe.entry().id(), false);
+                    cooldown = 6;
+                }
+                case AUTO_PLACE_TABLE -> {
+                    var r = placer.tick(client);
+                    switch (r.state()) {
+                        case PLACED -> {
+                            tablePos = r.pos();
+                            openTries = 0;
+                            phase = Phase.OPEN_TABLE;
+                        }
+                        case FAILED -> control.fail("自动放置工作台失败:" + r.reason());
+                        case WORKING -> {}
+                    }
                 }
                 case GOTO_TABLE -> {
                     if (BlockInteraction.inReach(client, tablePos)) {
@@ -159,7 +212,9 @@ final class CraftingActions {
     // ================================================= smelt
 
     static class SmeltHandler extends StepHandler {
-        private enum Phase { LOCATE, GOTO, OPEN, LOAD, WAIT, TAKE, DONE }
+        private enum Phase { LOCATE, AUTO_PLACE_FURNACE, GOTO, OPEN, LOAD, WAIT, TAKE, DONE }
+
+        private com.hyxt.taskmate.util.AutoPlacer placer;
 
         private static final List<String> DEFAULT_FUELS = List.of("coal", "charcoal", "coal_block",
                 "oak_planks", "spruce_planks", "birch_planks", "jungle_planks", "acacia_planks",
@@ -203,11 +258,29 @@ final class CraftingActions {
                     furnacePos = BlockInteraction.findNearest(client,
                             Set.of(Blocks.FURNACE, Blocks.BLAST_FURNACE, Blocks.SMOKER), 6);
                     if (furnacePos == null) {
-                        control.fail("附近 6 格内没有熔炉。请先 place 一个 furnace(材料:8 圆石)");
+                        if (InventoryHelper.findSlot(player, "furnace") >= 0) {
+                            com.hyxt.taskmate.util.ChatUi.info("附近没有熔炉,自动放置一个…");
+                            placer = new com.hyxt.taskmate.util.AutoPlacer("furnace");
+                            phase = Phase.AUTO_PLACE_FURNACE;
+                            return;
+                        }
+                        control.fail("附近 6 格内没有熔炉,背包里也没有熔炉。请先 craft 一个 furnace(材料:8 圆石)");
                         return;
                     }
                     phase = BlockInteraction.inReach(client, furnacePos) ? Phase.OPEN : Phase.GOTO;
                     if (phase == Phase.GOTO) BaritoneBridge.goNear(furnacePos, 2);
+                }
+                case AUTO_PLACE_FURNACE -> {
+                    var r = placer.tick(client);
+                    switch (r.state()) {
+                        case PLACED -> {
+                            furnacePos = r.pos();
+                            openTries = 0;
+                            phase = Phase.OPEN;
+                        }
+                        case FAILED -> control.fail("自动放置熔炉失败:" + r.reason());
+                        case WORKING -> {}
+                    }
                 }
                 case GOTO -> {
                     if (BlockInteraction.inReach(client, furnacePos)) {

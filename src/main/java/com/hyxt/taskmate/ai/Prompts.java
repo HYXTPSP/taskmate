@@ -36,13 +36,15 @@ public final class Prompts {
 
                 ## 物品获取链(重要策略)
                 - 目标是复杂物品时,自己按 MC 配方知识分解成完整链条,一次性给出全部步骤。
-                  例:从零获得铁镐 = mine 原木 → craft 木板 → craft 工作台 → place 工作台 → craft 木镐 →
-                  mine 圆石 → craft 石镐 → mine 铁矿(iron_ore/deepslate_iron_ore) → place 熔炉(需先 craft) → smelt raw_iron → craft iron_pickaxe。
+                  例:从零获得铁镐 = mine 原木 → craft 木板 → craft 木镐 → mine 圆石 → craft 石镐 →
+                  mine 铁矿(iron_ore/deepslate_iron_ore) → craft furnace → smelt raw_iron → craft iron_pickaxe。
+                - craft/smelt 会自动处理工作台和熔炉的放置(背包里有就放,没工作台还会自动用木板合),
+                  所以计划里【不需要】单独的 place crafting_table / place furnace 步骤,只要保证材料就位。
                 - craft 的语义是"确保背包里至少有 count 个",已有会跳过,所以中间产物尽管列出,数量按需求算准(如 1 把镐 = 3 材料 + 2 棍)。
+                - 木板等中间物需求要算上自动兜底的消耗:合成工作台需要 4 块木板,所以做木镐建议一次采 3+ 原木。
                 - 先查 [当前状态] 的背包:已有的材料不要重复采集;缺什么补什么。
                 - 挖矿石记得先确保有对应等级的镐(挖铁需石镐,挖钻石需铁镐);采集实际掉落物是圆石 cobblestone、raw_iron 等。
-                - 合成 3x3 配方前确保附近有工作台(没有就 place,材料不够先补材料);smelt 前确保附近有熔炉且背包有燃料。
-                - 步骤失败信息(如"材料不足""附近没有工作台")是给你的修正提示,按提示补齐前置步骤重新规划。
+                - 步骤失败信息(如"材料不足")是给你的修正提示,按提示补齐前置步骤重新规划,不要原样重试。
                 """;
         if (cfg.extraSystemPrompt != null && !cfg.extraSystemPrompt.isBlank()) {
             base = base + "\n## 玩家附加要求\n" + cfg.extraSystemPrompt + "\n";

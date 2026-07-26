@@ -39,8 +39,8 @@ public class ModConfig {
     public boolean showHud = true;
 
     // ---- 对话上下文 ----
-    /** 发送给 AI 的最大历史消息条数(超出后丢弃最旧的) */
-    public int maxHistoryMessages = 24;
+    /** 发送给 AI 的最大历史消息条数(超出后丢弃最旧的;旧消息的状态快照会自动剥掉以省 token) */
+    public int maxHistoryMessages = 16;
     /** 上下文与地点记忆按 服务器/存档 持久化到磁盘 */
     public boolean persistContext = true;
     /** 追加到系统提示词末尾的自定义内容 */
@@ -57,8 +57,8 @@ public class ModConfig {
     public boolean confirmReplan = true;
     /** 单个步骤的超时时间(秒) */
     public int stepTimeoutSeconds = 300;
-    /** 任务全部完成后是否上报 AI(让 AI 总结一句),关闭可省 token */
-    public boolean reportTaskResultToAi = true;
+    /** 任务全部完成后是否上报 AI(让 AI 总结一句)。默认关闭省 token,本地会显示收获清单 */
+    public boolean reportTaskResultToAi = false;
     /** 单个任务的 token 消耗上限,超过后不再自动重规划/总结(0 = 不限) */
     public long maxTokensPerTask = 0;
 

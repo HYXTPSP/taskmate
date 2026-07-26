@@ -48,9 +48,9 @@ public final class AiSession {
         if (TaskExecutor.INSTANCE.isRunningOrPaused()) {
             TaskExecutor.INSTANCE.pauseForCorrection();
             content = "[任务事件] 玩家在任务执行中发来新指令,当前任务已暂停。\n"
-                    + ContextBuilder.snapshot() + "\n玩家指令: " + text;
+                    + "玩家指令: " + text + "\n" + ContextBuilder.snapshot();
         } else {
-            content = ContextBuilder.snapshot() + "\n玩家指令: " + text;
+            content = "玩家指令: " + text + "\n" + ContextBuilder.snapshot();
         }
         send(content, true);
     }
