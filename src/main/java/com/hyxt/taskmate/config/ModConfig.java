@@ -70,6 +70,10 @@ public class ModConfig {
     public boolean autoDefend = true;
     /** kill 动作在生命值低于该值时中止 */
     public int combatAbortHealth = 6;
+    /** 任务中光照过低时自动插火把(需背包有火把) */
+    public boolean autoTorch = true;
+    /** 工具即将损坏时自动换备用/预警 */
+    public boolean toolGuard = true;
 
     // ---- 安全边界(透传给 Baritone) ----
     /** 允许 AI 破坏方块 */

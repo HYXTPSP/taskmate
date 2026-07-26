@@ -7,6 +7,7 @@ import com.hyxt.taskmate.config.ModConfig;
 import com.hyxt.taskmate.util.ChatUi;
 import com.hyxt.taskmate.util.CombatHelper;
 import com.hyxt.taskmate.util.InventoryHelper;
+import com.hyxt.taskmate.util.InventoryHelper;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.component.DataComponentTypes;
@@ -85,6 +86,63 @@ public final class SurvivalManager {
         // ---- 自动进食
         if (cfg.autoEat) {
             tickEating(client);
+        }
+
+        // ---- 反射:自动插火把 / 工具保护
+        if (cfg.autoTorch) tickTorch(client);
+        if (cfg.toolGuard) tickToolGuard(client);
+    }
+
+    // ------------------------------------------------ 火把反射
+
+    private static int torchCooldown;
+
+    private static void tickTorch(MinecraftClient client) {
+        if (--torchCooldown > 0) return;
+        torchCooldown = 60;
+        ClientPlayerEntity player = client.player;
+        if (!player.isOnGround() || player.currentScreenHandler != player.playerScreenHandler) return;
+        BlockPos feet = player.getBlockPos();
+        if (client.world.getLightLevel(net.minecraft.world.LightType.BLOCK, feet) >= 5) return;
+        int torchSlot = InventoryHelper.findSlot(player, "torch");
+        if (torchSlot < 0) return;
+        BlockPos below = feet.down();
+        if (!client.world.getBlockState(feet).isReplaceable()
+                || !client.world.getBlockState(below).isSolidBlock(client.world, below)) return;
+        int prev = player.getInventory().getSelectedSlot();
+        InventoryHelper.selectInHotbar(client, torchSlot);
+        com.hyxt.taskmate.util.BlockPlacer.place(client,
+                new com.hyxt.taskmate.util.BlockPlacer.Spot(feet, below, net.minecraft.util.math.Direction.UP));
+        player.getInventory().setSelectedSlot(prev);
+    }
+
+    // ------------------------------------------------ 工具保护反射
+
+    private static int toolCooldown;
+    private static String lastWarnedTool = "";
+
+    private static void tickToolGuard(MinecraftClient client) {
+        if (--toolCooldown > 0) return;
+        toolCooldown = 20;
+        ClientPlayerEntity player = client.player;
+        var held = player.getMainHandStack();
+        if (held.isEmpty() || held.getMaxDamage() <= 0) return;
+        if (held.getDamage() < held.getMaxDamage() - 8) return;
+        String id = InventoryHelper.idOf(held);
+        // 找同类型的备用工具(耐久健康的)
+        String type = id.contains("_") ? id.substring(id.indexOf('_')) : id; // 如 _pickaxe
+        int spare = InventoryHelper.findSlot(player, s -> {
+            if (s.getMaxDamage() <= 0) return false;
+            String sid = InventoryHelper.idOf(s);
+            return sid.endsWith(type) && !sid.equals(id) || (sid.equals(id) && s.getDamage() < s.getMaxDamage() - 20);
+        });
+        if (spare >= 0) {
+            InventoryHelper.selectInHotbar(client, spare);
+            ChatUi.info(id + " 快坏了,已自动换用备用工具。");
+        } else if (!lastWarnedTool.equals(id)) {
+            lastWarnedTool = id;
+            ChatUi.error("警告: " + id + " 即将损坏,且没有备用!");
+            AiSession.INSTANCE.noteEvent("玩家的 " + id + " 即将损坏且无备用,后续规划注意先补充工具");
         }
     }
 

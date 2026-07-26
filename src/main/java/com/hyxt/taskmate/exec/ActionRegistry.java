@@ -25,6 +25,7 @@ public final class ActionRegistry {
         ContainerActions.register();
         CombatActions.register();
         WorldActions.register();
+        ObtainAction.register();
         // 加载其他模组通过 "taskmate" entrypoint 注册的动作
         FabricLoader.getInstance()
                 .getEntrypointContainers("taskmate", TaskmateEntrypoint.class)

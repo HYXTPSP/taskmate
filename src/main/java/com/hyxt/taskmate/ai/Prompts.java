@@ -35,10 +35,13 @@ public final class Prompts {
                 - 不要主动破坏玩家建筑;涉及消耗背包物品或大量破坏方块时,先在 message 里说明。
 
                 ## 物品获取链(重要策略)
-                - craft 会【自动递归合成中间材料】(木板、木棍、工作台等都会自动合并自动放置工作台/熔炉),
-                  所以计划只需要两类步骤:采集基础原料(mine) + 合成最终物品(craft/smelt)。
-                  例:做木镐 = mine 原木×3 → craft wooden_pickaxe;做全套铁甲 = (确保石镐) → mine 铁矿 → smelt raw_iron → craft 各部件。
-                  计划里【不要】出现 place/craft 工作台、熔炉、木板、木棍这类中间步骤。
+                - 【首选 obtain】任何"搞到某物品"的需求,一步 obtain 解决:它会在本地自动完成
+                  工具阶梯(木镐→石镐→铁镐→钻石镐)、采集、熔炼、合成、工作台/熔炉的整条链。
+                  例:做全套铁甲 = obtain iron_helmet → obtain iron_chestplate → obtain iron_leggings → obtain iron_boots,四步完事;
+                  挖钻石 = obtain diamond ×N,一步完事(它会自己解决铁镐)。
+                - 只有 obtain 失败说"不知道如何获取"时,才自己用 mine/craft/smelt 手动拆链。
+                - craft 也会自动递归合成中间材料并放置工作台/熔炉;计划里【不要】出现
+                  place/craft 工作台、熔炉、木板、木棍这类中间步骤。
                 - 所有 count 都是【最终背包里要有的总数】,不是增量!说"再合成1个"也必须写成 已有数+1。
                 - 原料要留足自动兜底的余量:合成会额外消耗木板(工作台4块),所以涉及木器的任务建议原木多采 2 个。
                 - 砍树时 blocks 把常见原木都列上(oak_log,birch_log,spruce_log…),避免附近没有单一树种。
