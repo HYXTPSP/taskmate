@@ -111,6 +111,18 @@ public final class SurvivalManager {
         }
         // 反击进行中
         defenseTicks++;
+        // 血量过低 → 不死磕,撤退保命
+        if (player.getHealth() <= TaskmateClient.CONFIG.combatAbortHealth) {
+            if (threat != null && !threat.isRemoved() && BaritoneCheck.available()) {
+                net.minecraft.util.math.Vec3d away = player.getPos()
+                        .subtract(threat.getPos()).normalize().multiply(24).add(player.getPos());
+                BaritoneBridge.goTo((int) away.x, (int) player.getY(), (int) away.z);
+            }
+            ChatUi.error("血量过低,放弃反击并撤退!脱险后点【▶ 继续】或输入 "
+                    + TaskmateClient.CONFIG.triggerPrefix + "继续 恢复任务。");
+            endDefense(false); // 保持任务暂停,保命优先
+            return;
+        }
         boolean cleared = CombatActions.fightTick(client, threat);
         if (cleared) {
             // 附近还有没有别的贴脸威胁?

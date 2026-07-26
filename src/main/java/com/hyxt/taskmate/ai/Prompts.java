@@ -35,16 +35,18 @@ public final class Prompts {
                 - 不要主动破坏玩家建筑;涉及消耗背包物品或大量破坏方块时,先在 message 里说明。
 
                 ## 物品获取链(重要策略)
-                - 目标是复杂物品时,自己按 MC 配方知识分解成完整链条,一次性给出全部步骤。
-                  例:从零获得铁镐 = mine 原木 → craft 木板 → craft 木镐 → mine 圆石 → craft 石镐 →
-                  mine 铁矿(iron_ore/deepslate_iron_ore) → craft furnace → smelt raw_iron → craft iron_pickaxe。
-                - craft/smelt 会自动处理工作台和熔炉的放置(背包里有就放,没工作台还会自动用木板合),
-                  所以计划里【不需要】单独的 place crafting_table / place furnace 步骤,只要保证材料就位。
-                - craft 的语义是"确保背包里至少有 count 个",已有会跳过,所以中间产物尽管列出,数量按需求算准(如 1 把镐 = 3 材料 + 2 棍)。
-                - 木板等中间物需求要算上自动兜底的消耗:合成工作台需要 4 块木板,所以做木镐建议一次采 3+ 原木。
+                - craft 会【自动递归合成中间材料】(木板、木棍、工作台等都会自动合并自动放置工作台/熔炉),
+                  所以计划只需要两类步骤:采集基础原料(mine) + 合成最终物品(craft/smelt)。
+                  例:做木镐 = mine 原木×3 → craft wooden_pickaxe;做全套铁甲 = (确保石镐) → mine 铁矿 → smelt raw_iron → craft 各部件。
+                  计划里【不要】出现 place/craft 工作台、熔炉、木板、木棍这类中间步骤。
+                - 所有 count 都是【最终背包里要有的总数】,不是增量!说"再合成1个"也必须写成 已有数+1。
+                - 原料要留足自动兜底的余量:合成会额外消耗木板(工作台4块),所以涉及木器的任务建议原木多采 2 个。
+                - 砍树时 blocks 把常见原木都列上(oak_log,birch_log,spruce_log…),避免附近没有单一树种。
                 - 先查 [当前状态] 的背包:已有的材料不要重复采集;缺什么补什么。
-                - 挖矿石记得先确保有对应等级的镐(挖铁需石镐,挖钻石需铁镐);采集实际掉落物是圆石 cobblestone、raw_iron 等。
-                - 步骤失败信息(如"材料不足")是给你的修正提示,按提示补齐前置步骤重新规划,不要原样重试。
+                - 挖矿石记得先确保有对应等级的镐(挖铁需石镐,挖钻石需铁镐);采集实际掉落物是 cobblestone、raw_iron 等。
+                - 夜晚地表危险:如非必要优先白天做地表活动,夜间任务在 message 里提醒玩家风险。
+                - 玩家死亡后要拿回装备:goto 死亡点 → collect(自动捡完附近所有掉落物),两步即可。
+                - 步骤失败信息(如"缺少材料: xxx")是给你的修正提示,按提示补齐前置步骤重新规划,不要原样重试。
                 """;
         if (cfg.extraSystemPrompt != null && !cfg.extraSystemPrompt.isBlank()) {
             base = base + "\n## 玩家附加要求\n" + cfg.extraSystemPrompt + "\n";

@@ -94,6 +94,8 @@ public class TaskExecutor {
         stepStarted = false;
         planGains.clear();
         state = State.RUNNING;
+        com.hyxt.taskmate.util.TaskLog.log("=== 开始执行计划: " + activePlan.summary
+                + " (" + activePlan.steps.size() + " 步" + (autoMode ? ", 自动模式" : "") + ")");
         ChatUi.runningBanner(activePlan.summary.isBlank() ? "共 " + activePlan.steps.size() + " 步" : activePlan.summary);
     }
 
@@ -252,6 +254,8 @@ public class TaskExecutor {
         ChatUi.stepBanner(stepIndex + 1, activePlan.steps.size(), step.describe());
 
         control = new StepControlImpl(client, step);
+        com.hyxt.taskmate.util.TaskLog.log("步骤开始 " + (stepIndex + 1) + "/" + activePlan.steps.size()
+                + " [" + step.action + "] " + step.describe() + " | 位置 " + client.player.getBlockPos().toShortString());
 
         if (def == null) {
             control.fail("未注册的动作: " + step.action);
@@ -340,6 +344,8 @@ public class TaskExecutor {
         handler = null;
         state = State.IDLE;
         ChatUi.error("步骤失败: " + step.describe() + " —— " + reason);
+        com.hyxt.taskmate.util.TaskLog.log("步骤失败 [" + step.action + "] " + reason
+                + " | 背包 " + inventoryCounts(MinecraftClient.getInstance()));
         if (TokenStats.taskCapExceeded()) {
             autoMode = false;
             ChatUi.error("本任务 token 消耗已达上限(" + cfg.maxTokensPerTask + "),不再自动重规划。");
@@ -471,6 +477,8 @@ public class TaskExecutor {
                 if (done || this != control) return;
                 done = true;
                 recordStepGains(client);
+                com.hyxt.taskmate.util.TaskLog.log("步骤完成 [" + step.action + "] 本步获得 "
+                        + inventoryDiff(client) + " | 背包 " + inventoryCounts(client));
                 stepIndex++;
                 stepStarted = false;
                 handler = null;

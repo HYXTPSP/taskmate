@@ -68,4 +68,55 @@ public final class RecipeIndex {
             return 1;
         }
     }
+
+    public record Missing(String item, int count) {}
+
+    /**
+     * 计算单次合成该配方还缺哪些材料(基于配方书的展示格子,贪心匹配背包)。
+     * 算不出来(非常规配方)返回空列表,走"点了没产出"的兜底失败路径。
+     */
+    public static java.util.List<Missing> computeMissing(MinecraftClient client, Found found) {
+        try {
+            var player = client.player;
+            ContextParameterMap ctx = SlotDisplayContexts.createParameters(client.world);
+            RecipeDisplay d = found.entry().display();
+            java.util.List<net.minecraft.recipe.display.SlotDisplay> cells;
+            if (d instanceof ShapedCraftingRecipeDisplay s) {
+                cells = s.ingredients();
+            } else if (d instanceof ShapelessCraftingRecipeDisplay s) {
+                cells = s.ingredients();
+            } else {
+                return java.util.List.of();
+            }
+            // 背包计数(0..35)
+            java.util.Map<String, Integer> inv = new java.util.HashMap<>();
+            for (int i = 0; i < 36; i++) {
+                ItemStack st = player.getInventory().getStack(i);
+                if (!st.isEmpty()) inv.merge(InventoryHelper.idOf(st), st.getCount(), Integer::sum);
+            }
+            java.util.Map<String, Integer> missing = new java.util.LinkedHashMap<>();
+            for (var cell : cells) {
+                java.util.List<ItemStack> options = cell.getStacks(ctx);
+                if (options.isEmpty()) continue; // 空格子
+                String chosen = null;
+                for (ItemStack opt : options) {
+                    String id = InventoryHelper.idOf(opt);
+                    if (inv.getOrDefault(id, 0) > 0) {
+                        chosen = id;
+                        break;
+                    }
+                }
+                if (chosen != null) {
+                    inv.merge(chosen, -1, Integer::sum);
+                } else {
+                    missing.merge(InventoryHelper.idOf(options.get(0)), 1, Integer::sum);
+                }
+            }
+            java.util.List<Missing> out = new java.util.ArrayList<>();
+            missing.forEach((k, v) -> out.add(new Missing(k, v)));
+            return out;
+        } catch (Throwable t) {
+            return java.util.List.of();
+        }
+    }
 }

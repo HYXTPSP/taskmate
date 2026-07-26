@@ -47,6 +47,10 @@ final class CoreActions {
                 "{\"action\":\"stop\",\"desc\":\"...\"} —— 停止一切动作",
                 false, StopHandler::new));
         ActionRegistry.register(new ActionDefinition(
+                "collect", List.of("pickup", "collect_items"),
+                "{\"action\":\"collect\",\"radius\":16,\"desc\":\"...\"} —— 自动走过去捡起附近地上的所有掉落物(死亡后回收装备、采集后清场用),直到捡完为止",
+                true, CollectHandler::new));
+        ActionRegistry.register(new ActionDefinition(
                 "remember", List.of("mark"),
                 "{\"action\":\"remember\",\"name\":\"家\",\"note\":\"可选备注\",\"desc\":\"...\"} —— 把玩家当前位置记为地点(跨会话保存,已记住的地点见状态快照)",
                 false, RememberHandler::new));
@@ -214,6 +218,44 @@ final class CoreActions {
         public void start() {
             if (BaritoneCheck.available()) BaritoneBridge.cancelAll();
             control.complete();
+        }
+    }
+
+    static class CollectHandler extends StepHandler {
+        private int repathCooldown;
+        private int idleTicks;
+
+        @Override
+        public void start() {}
+
+        @Override
+        public void tick() {
+            var client = control.client();
+            var player = client.player;
+            int radius = Math.max(4, control.step().getInt("radius", 16));
+            net.minecraft.entity.ItemEntity best = null;
+            double bestDist = (double) radius * radius;
+            for (net.minecraft.entity.Entity e : client.world.getEntities()) {
+                if (e instanceof net.minecraft.entity.ItemEntity item && !e.isRemoved()) {
+                    double d = e.squaredDistanceTo(player);
+                    if (d < bestDist) {
+                        bestDist = d;
+                        best = item;
+                    }
+                }
+            }
+            if (best == null) {
+                if (++idleTicks > 20) { // 等 1 秒确认真的捡完了
+                    BaritoneBridge.cancelAll();
+                    control.complete();
+                }
+                return;
+            }
+            idleTicks = 0;
+            if (repathCooldown-- <= 0) {
+                BaritoneBridge.goNear(best.getBlockPos(), 1);
+                repathCooldown = 15;
+            }
         }
     }
 
