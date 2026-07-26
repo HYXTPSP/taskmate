@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "taskmate",
+  "version": "${version}",
+  "name": "AI Taskmate",
+  "description": "下达任务型 AI 助手:聊天输入 #任务 让 AI 拟定计划,确认后自动执行(基于 Baritone),随时可终止或纠正。",
+  "authors": [
+    "HYXT"
+  ],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.hyxt.taskmate.TaskmateClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "fabric-api": "*",
+    "minecraft": "~1.21.8",
+    "java": ">=21"
+  },
+  "suggests": {
+    "baritone": "*"
+  }
+}

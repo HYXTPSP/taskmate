@@ -1,0 +1,99 @@
+plugins {
+    id 'fabric-loom' version "${loom_version}"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    mavenCentral()
+}
+
+// ---- Baritone API (本地 libs 依赖) ----
+// 编译需要 libs/baritone-api-fabric-<version>.jar
+// 运行游戏时玩家也要在 mods 里放同一个 baritone-api-fabric jar
+// (不能用 standalone 版:它连 baritone.api 都混淆了,运行时会 ClassNotFound)
+def baritoneJar = file("libs/baritone-api-fabric-${project.baritone_version}.jar")
+
+tasks.register('downloadBaritone') {
+    description = '从 GitHub Releases 下载 Baritone API jar 到 libs/ (若已存在则跳过)'
+    outputs.file(baritoneJar)
+    onlyIf { !baritoneJar.exists() }
+    doLast {
+        baritoneJar.parentFile.mkdirs()
+        def urls = [
+                "https://github.com/cabaletta/baritone/releases/download/v${project.baritone_version}/baritone-api-fabric-${project.baritone_version}.jar",
+                // GitHub 直连失败时可尝试镜像(中国大陆网络):
+                "https://ghproxy.net/https://github.com/cabaletta/baritone/releases/download/v${project.baritone_version}/baritone-api-fabric-${project.baritone_version}.jar"
+        ]
+        def ok = false
+        for (u in urls) {
+            try {
+                logger.lifecycle("Downloading: ${u}")
+                new URL(u).openConnection().with { conn ->
+                    conn.connectTimeout = 15000
+                    conn.readTimeout = 120000
+                    conn.inputStream.withStream { input ->
+                        baritoneJar.withOutputStream { it << input }
+                    }
+                }
+                ok = true
+                break
+            } catch (Exception e) {
+                logger.warn("下载失败: ${e.message}")
+                baritoneJar.delete()
+            }
+        }
+        if (!ok) {
+            throw new GradleException(
+                    "无法自动下载 Baritone API。请手动下载 baritone-api-fabric-${project.baritone_version}.jar\n" +
+                    "地址: https://github.com/cabaletta/baritone/releases/tag/v${project.baritone_version}\n" +
+                    "然后放入项目的 libs/ 目录后重新构建。")
+        }
+    }
+}
+
+// 编译前检查 baritone jar 是否就位,并给出清晰提示
+tasks.configureEach { t ->
+    if (t.name == 'compileJava') {
+        t.dependsOn('downloadBaritone')
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // Baritone API:仅编译期依赖,运行期由玩家安装的 baritone-standalone 提供
+    modCompileOnly files(baritoneJar)
+}
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') {
+        expand 'version': project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = 'UTF-8'
+    it.options.release = 21
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+    from('LICENSE') {
+        rename { "${it}_${project.base.archivesName.get()}" }
+    }
+}
